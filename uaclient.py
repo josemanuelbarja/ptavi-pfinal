@@ -46,9 +46,8 @@ class SendSip:
             elif METHOD == 'BYE':
                 self.processBye()
             data = self.my_socket.recv(1024)
-            response = data.decode('utf-8').split("\r\n")
-            print('Recibido --', data.decode('utf-8'))
-            print("Terminando socket...")
+            self.response = data.decode('utf-8').split("\r\n")
+            self.processResponse()
 
     def processRegister(self):
         self.my_socket.send((bytes(MESSAGE.format_map(Default(name= user))
@@ -65,6 +64,14 @@ class SendSip:
     def processBye(self):
         self.my_socket.send((bytes(MESSAGE.format_map(Default(name= OPTIONS))
             ,'utf-8')))
+
+    def processResponse(self):
+        if '401' in self.response[0]:
+            print(self.response)
+            nonce = self.response[2].split("nonce=")[1]
+            self.my_socket.send((bytes(MESSAGE.format_map(Default(name= user))
+                + EXPIRES + '\r\n' + 'Authorization: Digest response=' + nonce
+                + '\r\n','utf-8')))
 
 if __name__ == '__main__':
     try:
