@@ -121,17 +121,17 @@ class SendSip:
                 + '\r\n' + EXPIRES + '\r\n' + authen,'utf-8')))
             log.send(praddress, MESSAGE.format_map(Default(name= user)) +
             EXPIRES + ' ' + authen)
-        try:
-            data = self.sock.recv(1024)
-            self.response = data.decode('utf-8').split("\r\n")
-            print(' '.join(self.response))
-            log.received(praddress, ' '.join(self.response) + '\r\n')
-        except:
-            message = ('No server listening at ' + proxyip + ' port '
-                + str(proxyport))
-            log.error(message + '\r\n')
-            log.finishing()
-            sys.exit(message)
+            try:
+                data = self.sock.recv(1024)
+                self.response = data.decode('utf-8').split("\r\n")
+                print(' '.join(self.response))
+                log.received(praddress, ' '.join(self.response) + '\r\n')
+            except:
+                message = ('No server listening at ' + proxyip + ' port '
+                    + str(proxyport))
+                log.error(message + '\r\n')
+                log.finishing()
+                sys.exit(message)
 
 if __name__ == '__main__':
     try:
