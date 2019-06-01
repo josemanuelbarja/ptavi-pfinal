@@ -100,12 +100,11 @@ class SendSip:
         '\r\n')
 
     def processInvite(self):
-        self.sock.send((bytes(MESSAGE.format_map(Default(name= OPTIONS))
-            ,'utf-8')))
         headersdp = ('Content-type: application/sdp\r\n\r\n' + 'v=0\r\n' + 'o=' +
             usrname + " " + serverip + '\r\n' + 's=sipsesion\r\n' + 't=0\r\n' +
              'm=audio ' + str(rtpport) + ' RTP\r\n')
-        self.sock.send(bytes(headersdp,'utf-8'))
+        self.sock.send((bytes(MESSAGE.format_map(Default(name= OPTIONS))
+            + headersdp,'utf-8')))
         log.send(praddress, MESSAGE.format_map(Default(name= OPTIONS)))
 
     def processBye(self):

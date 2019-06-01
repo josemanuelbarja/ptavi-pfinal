@@ -11,7 +11,6 @@ import socketserver
 from xml.sax import make_parser
 from uaclient import ConfigHandler, Default, Logger
 
-CONFIG_FICH = sys.argv[1]
 atts = {'server': ['name', 'ip', 'puerto'],
        'database': ['path', 'passwdpath'],
        'log': ['path']}
@@ -49,52 +48,111 @@ class JSONLoader:
 
 class UDPHandler(socketserver.DatagramRequestHandler):
 
+    sesions = {}
+
+    def expiresTime(self):
+        try:
+            user_del = []
+            now = time.gmtime(time.time() + 3600)
+            for usr in self.prjson.usr:
+                if now >= time.strptime(self.prjson.usr[usr]['expires'],
+                '%d/%m/%Y %H:%M:%S'):
+                    user_del.append(usr)
+            for usr in user_del:
+                del self.prjson.usr[usr]
+        except:
+            pass
+
+    def client2server(self, message, dst):
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
+            port = self.prjson.usr[dst]['serverport']
+            my_socket.connect((prip, int(port)))
+            my_socket.send(bytes(message, 'utf-8'))
+            try:
+                reply = my_socket.recv(1024).decode('utf-8')
+            except:
+                log.error('Connection refused')
+
+            return reply
+
     def handle(self):
-        line = self.rfile.read()
-        self.message = line.decode('utf-8').split('\r\n')
-        self.usr = self.message[0].split(":")[1]
-        self.port = self.message[0].split(":")[2].split()[0]
-        self.expires = int(self.message[1].split(":")[1].split()[0])
-        self.deadtime = time.gmtime(time.time()+ 3600 + int(self.expires))
-        self.deadtime = time.strftime('%d/%m/%Y %H:%M:%S', self.deadtime)
+        self.line = self.rfile.read()
+        self.linedecod = self.line.decode('utf-8')
+        self.message = self.linedecod.split('\r\n')
+        self.prjson = JSONLoader(database)
         self.address = self.client_address[0] + ':' + str(self.client_address[1])
-        print(self.deadtime)
-        #print(self.line.decode('utf-8'))
+        self.expiresTime()
         self.processSIP()
 
     def processRegister(self):
-        if self.usr in self.prjson.usr:
+        user = self.message[0].split(" ")[2].split(":")[0]
+        self.port = self.message[0].split(":")[2].split()[0]
+        self.expires = int(self.message[1].split(":")[1].split()[0])
+        self.deadtime = time.gmtime(time.time()+ 3600 + int(self.expires))
+        self.strdeadtime = time.strftime('%d/%m/%Y %H:%M:%S', self.deadtime)
+        if user in self.prjson.usr:
             if self.expires == 0:
-                del self.prjson.usr[self.usr]
+                del self.prjson.usr[user]
                 self.wfile.write(bytes(cod['200'],'utf-8'))
                 print("user is logging out")
             else:
-                self.prjson.usr[self.usr]['expires'] = self.deadtime
+                self.prjson.usr[user]['expires'] = self.strdeadtime
                 self.wfile.write(bytes(cod['200'],'utf-8'))
-                print("user are already registered")
+                print("user is already registered")
         else:
-            nonce = secrets.choice(range(000000000,999999999))
-            if self.message[2] == '':
-                self.wfile.write(bytes(cod['401'],'utf-8'))
-                self.wfile.write((bytes('WWW Authenticate: Digest nonce='
-                + str(nonce),'utf-8')))
-                print('unauthorized')
+            if user in self.prjson.passwd:
+                nonce = secrets.choice(range(000000000,999999999))
+                if self.message[2] == '':
+                    self.wfile.write(bytes(cod['401'],'utf-8'))
+                    self.wfile.write((bytes('WWW Authenticate: Digest nonce='
+                    + str(nonce),'utf-8')))
+                    print('unauthorized')
+                else:
+                    user_data = {'serverport': self.port,
+                                'expires': self.strdeadtime}
+                    self.prjson.usr[user] = user_data
+                    self.wfile.write(bytes(cod['200'],'utf-8'))
+                    print("registered in json")
             else:
-                user_data = {'serverport': self.port,
-                            'expires': self.deadtime}
-                self.prjson.usr[self.usr] = user_data
-                self.wfile.write(bytes(cod['200'],'utf-8'))
-                print("registered in json")
+                self.wfile.write(bytes(cod['404'], 'utf-8'))
+                print('user ' + user + ' not found')
         self.prjson.register()
 
+    def processInvite(self):
+        print("invitar")
+        sdp = self.message[2:7]
+        orig = sdp[1].split()[0].split('=')[1]
+        if orig in self.prjson.usr:
+            dst = self.message[0].split(" ")[2].split(":")[0]
+            if dst in self.prjson.usr:
+                sesion = sdp[2].split('=')[1]
+                self.sesions[sesion] = [orig, dst]
+                reply = self.client2server(self.linedecod, dst)
+                self.wfile.write(bytes(reply,'utf-8'))
+                print(orig + 'starting sesion: ' + sesion)
+            else:
+                self.wfile.write(bytes(cod['404'],'utf-8'))
+                print('user ' + dst + ' not found')
+        else:
+            self.wfile.write(bytes(cod['404'], 'utf-8'))
+            print('user ' + orig + ' not found')
+
+    def processBye(self):
+        print("bye")
+
     def processSIP(self):
-        self.prjson = JSONLoader(database)
         method = self.message[0].split(' ')[0]
         if method == 'REGISTER':
             self.processRegister()
+        elif method == 'INVITE':
+            self.processInvite()
+
 
 if __name__ == '__main__':
-
+    try:
+        CONFIG_FICH = sys.argv[1]
+    except IndexError:
+        sys.exit("Usage: python proxy_registrar.py config")
     parser = make_parser()
     xml = ConfigHandler(atts)
     parser.setContentHandler(xml)
