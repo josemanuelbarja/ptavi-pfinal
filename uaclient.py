@@ -113,7 +113,7 @@ class SendSip:
             usrname + " " + serverip + '\r\n' + 's=sipsesion\r\n' + 't=0\r\n' +
              'm=audio ' + str(rtpport) + ' RTP\r\n')
         self.sock.send((bytes(MESSAGE.format_map(Default(name= OPTIONS))
-            + headersdp,'utf-8')))
+            + '\r\n' + headersdp,'utf-8')))
         log.send(praddress, MESSAGE.format_map(Default(name= OPTIONS)))
 
     def processBye(self):
@@ -121,6 +121,7 @@ class SendSip:
             + '\r\n','utf-8')))
 
     def processResponse(self):
+        ack = []
         if '401' in self.response[0]:
             #print(self.response)
             nonce = self.response[2].split("nonce=")[1]
@@ -140,7 +141,12 @@ class SendSip:
                 log.error(message + '\r\n')
                 log.finishing()
                 sys.exit(message)
-
+        elif ('100' in self.response[0] and '180' in self.response[2]
+        and '200' in self.response[4]) and 'sdp' in self.response[6]:
+            print("hola: ack")
+            #variables que hagan falta
+            self.sock.send(bytes('ACK' + ' sip:' + OPTIONS + ' SIP/2.0 ' +
+            '\r\n', 'utf-8'))
             # RESPUESTA ACK PARA 100 180 200.
 
 if __name__ == '__main__':
@@ -166,7 +172,7 @@ if __name__ == '__main__':
     praddress = proxyip + ':' + str(proxyport)
     fichlog = values['log:path']
     audio = values['audio:path']
-    MESSAGE = METHOD + ' sip: {name}' + ' SIP/2.0 '
+    MESSAGE = METHOD + ' sip:{name}' + ' SIP/2.0 '
     EXPIRES = 'EXPIRES: ' + OPTIONS  #  'Only used with REGISTER method'
     log = Logger(fichlog)
     connect = SendSip(proxyip, proxyport)

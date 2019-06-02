@@ -19,24 +19,39 @@ atts = {'account': ['username', 'passwd'],
 
 class EchoHandler(socketserver.DatagramRequestHandler):
 
+    def processResponse(self):
+
+        # CONTABILIZAR TIEMPO PARA RESPUESTA ('t')
+        headersdp = ('Content-type: application/sdp\r\n\r\n' + 'v=0\r\n' + 'o='
+        + usrname + " " + serverip + '\r\n' + 's=sipsesion\r\n' + 't=0\r\n' +
+        'm=audio ' + str(rtpport) + ' RTP\r\n')
+        self.wfile.write(bytes(cod['100'], 'utf-8'))
+        self.wfile.write(bytes(cod['180'], 'utf-8'))
+        self.wfile.write(bytes(cod['200'] + headersdp, 'utf-8'))
+
+
     def handle(self):
         self.line = self.rfile.read()
         self.address = self.client_address[0] + ':' + str(self.client_address[1])
         self.linedecod = self.line.decode('utf-8')
         self.message = self.linedecod.split('\r\n')
-        headsip = self.message[0]
-        contsdp = self.message[2:7]
-        version = contsdp[0].split("=")[1]
-        fromdst = contsdp[1].split(" ")[0].split("=")[1]
-        ipdst = contsdp[1].split(" ")[1]
-        sesname = contsdp[2].split("=")[1]
-        sestime = contsdp[3].split("=")[1]
-        rtpdst = contsdp[4]
-        rtptype = rtpdst.split(" ")[0].split("=")[1]
-        rtpdstport = rtpdst.split(" ")[1]
-        self.wfile.write(bytes(cod['100'], 'utf-8'))
-        self.wfile.write(bytes(cod['180'], 'utf-8'))
-        self.wfile.write(bytes(cod['200'], 'utf-8'))
+        method = self.message[0].split(" ")[0]
+        if method == 'INVITE':
+            contsdp = self.message[3:8]
+            version = contsdp[0].split("=")[1]
+            fromdst = contsdp[1].split(" ")[0].split("=")[1]
+            ipdst = contsdp[1].split(" ")[1]
+            sesname = contsdp[2].split("=")[1]
+            sestime = contsdp[3].split("=")[1]
+            rtpdst = contsdp[4]
+            rtptype = rtpdst.split(" ")[0].split("=")[1]
+            rtpdstport = rtpdst.split(" ")[1]
+            self.processResponse()
+        elif method == 'ACK':
+            print(self.linedecod)
+            #conectar rtp
+
+
 
 if __name__ == '__main__':
     try:

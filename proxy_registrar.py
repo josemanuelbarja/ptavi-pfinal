@@ -63,12 +63,11 @@ class UDPHandler(socketserver.DatagramRequestHandler):
             my_socket.connect((prip, int(port)))
             my_socket.send(bytes(message, 'utf-8'))
             try:
-                reply = my_socket.recv(1024).decode('utf-8')
+                self.reply = my_socket.recv(1024).decode('utf-8')
             except:
+                # -- enviar error a cliente.
                 # -- el servidor no se encuentra en ese .xml
                 sys.exit('Connection refused')
-
-            return reply
 
     def handle(self):
         self.line = self.rfile.read()
@@ -80,7 +79,8 @@ class UDPHandler(socketserver.DatagramRequestHandler):
         self.processSIP()
 
     def processRegister(self):
-        user = self.message[0].split(" ")[2].split(":")[0]
+        user = self.message[0].split(":")[1]
+        print(user)
         self.port = self.message[0].split(":")[2].split()[0]
         self.expires = int(self.message[1].split(":")[1].split()[0])
         self.deadtime = time.gmtime(time.time()+ 3600 + int(self.expires))
@@ -114,18 +114,19 @@ class UDPHandler(socketserver.DatagramRequestHandler):
         self.prjson.register()
 
     def processInvite(self):
-        print("invitar")
-        sdp = self.message[2:7]
+        sdp = self.message[3:8]
+        print(self.linedecod)
         orig = sdp[1].split()[0].split('=')[1]
         if orig in self.prjson.usr:
-            dst = self.message[0].split(" ")[2].split(":")[0]
+            dst = self.message[0].split(":")[1].split(" ")[0]
             if dst in self.prjson.usr:
                 sesion = sdp[2].split('=')[1]
                 self.sesions[sesion] = [orig, dst]
-                reply = self.client2server(self.linedecod, dst)
-                self.wfile.write(bytes(reply,'utf-8'))
-                print(orig + 'starting sesion: ' + sesion)
-                print(reply)
+                self.client2server(self.linedecod, dst)
+                self.wfile.write(bytes(self.reply,'utf-8'))
+                print(orig + ' starting sesion: ' + sesion)
+                print(self.reply)
+
             else:
                 self.wfile.write(bytes(cod['404'],'utf-8'))
                 print('user ' + dst + ' not found')
@@ -142,6 +143,10 @@ class UDPHandler(socketserver.DatagramRequestHandler):
             self.processRegister()
         elif method == 'INVITE':
             self.processInvite()
+        elif method == 'ACK':
+            user = self.message[0].split(":")[1].split(" ")[0]
+            print(self.message)
+            self.client2server(self.linedecod,user)
 
 
 if __name__ == '__main__':
