@@ -66,12 +66,15 @@ class UDPHandler(socketserver.DatagramRequestHandler):
     def client2server(self, message, dst):
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
             port = self.prjson.usr[dst]['serverport']
+            print(prip)
+            print(port)
             my_socket.connect((prip, int(port)))
             my_socket.send(bytes(message, 'utf-8'))
             try:
                 reply = my_socket.recv(1024).decode('utf-8')
             except:
-                log.error('Connection refused')
+                # -- el servidor no se encuentra en ese .xml
+                sys.exit('Connection refused')
 
             return reply
 
