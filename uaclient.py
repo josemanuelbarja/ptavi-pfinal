@@ -16,6 +16,15 @@ atts = {'account': ['username', 'passwd'],
         'log': ['path'],
         'audio': ['path']}
 
+cod = {'100': 'SIP/2.0 100 Trying\r\n\r\n',
+        '180': 'SIP/2.0 180 Ringing\r\n\r\n',
+        '200': 'SIP/2.0 200 OK\r\n\r\n',
+        '400': 'SIP/2.0 400 Bad Request\r\n\r\n',
+        '401': 'SIP/2.0 401 Unauthorized\r\n\r\n',
+        '404': 'SIP/2.0 404 User Not Found\r\n\r\n',
+        '405': 'SIP/2.0 405 Method Not Allowed\r\n\r\n'}
+
+
 class ConfigHandler(ContentHandler):
 
     def __init__(self, att):
@@ -131,6 +140,8 @@ class SendSip:
                 log.error(message + '\r\n')
                 log.finishing()
                 sys.exit(message)
+
+            # RESPUESTA ACK PARA 100 180 200.
 
 if __name__ == '__main__':
     try:

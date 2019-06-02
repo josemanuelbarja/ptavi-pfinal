@@ -8,7 +8,7 @@ import socket
 import socketserver
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
-from uaclient import ConfigHandler, Default, Logger
+from uaclient import ConfigHandler, Default, Logger, cod
 
 atts = {'account': ['username', 'passwd'],
         'uaserver': ['ip', 'puerto'],
@@ -17,23 +17,26 @@ atts = {'account': ['username', 'passwd'],
         'log': ['path'],
         'audio': ['path']}
 
-class UDPHandler(socketserver.DatagramRequestHandler):
-
-    def processResponse(self, line):
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
-            my_socket.connect((proxyip, int(proxyport)))
-            my_socket.send(bytes(line, 'utf-8'))
+class EchoHandler(socketserver.DatagramRequestHandler):
 
     def handle(self):
         self.line = self.rfile.read()
-        self.linedecod = self.line.decode('utf-8')
         self.address = self.client_address[0] + ':' + str(self.client_address[1])
+        self.linedecod = self.line.decode('utf-8')
         self.message = self.linedecod.split('\r\n')
         headsip = self.message[0]
-        contspd = self.message[1]
-        print(headsip)
-        print(contspd)
-
+        contsdp = self.message[2:7]
+        version = contsdp[0].split("=")[1]
+        fromdst = contsdp[1].split(" ")[0].split("=")[1]
+        ipdst = contsdp[1].split(" ")[1]
+        sesname = contsdp[2].split("=")[1]
+        sestime = contsdp[3].split("=")[1]
+        rtpdst = contsdp[4]
+        rtptype = rtpdst.split(" ")[0].split("=")[1]
+        rtpdstport = rtpdst.split(" ")[1]
+        self.wfile.write(bytes(cod['100'], 'utf-8'))
+        self.wfile.write(bytes(cod['180'], 'utf-8'))
+        self.wfile.write(bytes(cod['200'], 'utf-8'))
 
 if __name__ == '__main__':
     try:
@@ -56,7 +59,7 @@ if __name__ == '__main__':
     praddress = proxyip + ':' + str(proxyport)
     fichlog = values['log:path']
     audio = values['audio:path']
-    serve = socketserver.UDPServer((serverip, serverport),UDPHandler)
+    serve = socketserver.UDPServer((serverip, serverport),EchoHandler)
     print(" listening at " + serverip + ":" + str(serverport))
     try:
         serve.serve_forever()

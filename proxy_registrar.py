@@ -9,19 +9,11 @@ import secrets
 import socket
 import socketserver
 from xml.sax import make_parser
-from uaclient import ConfigHandler, Default, Logger
+from uaclient import ConfigHandler, Default, Logger, cod
 
 atts = {'server': ['name', 'ip', 'puerto'],
        'database': ['path', 'passwdpath'],
        'log': ['path']}
-
-cod = {'100': 'SIP/2.0 100 Trying\r\n\r\n',
-        '180': 'SIP/2.0 180 Ringing\r\n\r\n',
-        '200': 'SIP/2.0 200 OK\r\n\r\n',
-        '400': 'SIP/2.0 400 Bad Request\r\n\r\n',
-        '401': 'SIP/2.0 401 Unauthorized\r\n\r\n',
-        '404': 'SIP/2.0 404 User Not Found\r\n\r\n',
-        '405': 'SIP/2.0 405 Method Not Allowed\r\n\r\n'}
 
 class JSONLoader:
 
@@ -133,6 +125,7 @@ class UDPHandler(socketserver.DatagramRequestHandler):
                 reply = self.client2server(self.linedecod, dst)
                 self.wfile.write(bytes(reply,'utf-8'))
                 print(orig + 'starting sesion: ' + sesion)
+                print(reply)
             else:
                 self.wfile.write(bytes(cod['404'],'utf-8'))
                 print('user ' + dst + ' not found')
