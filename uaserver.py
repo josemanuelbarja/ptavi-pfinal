@@ -50,8 +50,12 @@ class EchoHandler(socketserver.DatagramRequestHandler):
         elif method == 'ACK':
             print(self.linedecod)
             mp32rtp = ('./mp32rtp -i ' + self.client_address[0] +
-            '-p ' + rtpdstport[0] + ' <' + audio)
+            ' -p ' + rtpdstport[0] + ' < ' + audio)
+            print('running: ' + mp32rtp)
             os.system(mp32rtp)
+        elif method == 'BYE':
+            print('bye received')
+            self.wfile.write(bytes(cod['200'],'utf-8'))
 
 if __name__ == '__main__':
     try:

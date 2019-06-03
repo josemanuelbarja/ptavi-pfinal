@@ -144,9 +144,13 @@ class SendSip:
         elif ('100' in self.response[0] and '180' in self.response[2]
         and '200' in self.response[4]) and 'sdp' in self.response[6]:
             print("hola: ack")
+            dstport = self.response[12].split(" ")[1]
             #variables que hagan falta
             self.sock.send(bytes('ACK' + ' sip:' + OPTIONS + ' SIP/2.0 ' +
             '\r\n', 'utf-8'))
+            mp32rtp = './mp32rtp i- ' + serverip + ' p ' + dstport + ' < ' + audio
+            print(mp32rtp)
+            os.system(mp32rtp)
             # RESPUESTA ACK PARA 100 180 200.
 
 if __name__ == '__main__':
