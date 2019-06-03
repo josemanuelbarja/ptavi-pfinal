@@ -45,13 +45,13 @@ class EchoHandler(socketserver.DatagramRequestHandler):
             sestime = contsdp[3].split("=")[1]
             rtpdst = contsdp[4]
             rtptype = rtpdst.split(" ")[0].split("=")[1]
-            rtpdstport = rtpdst.split(" ")[1]
+            rtpdstport.append(rtpdst.split(" ")[1])
             self.processResponse()
         elif method == 'ACK':
             print(self.linedecod)
-            #conectar rtp
-
-
+            mp32rtp = ('./mp32rtp -i ' + self.client_address[0] +
+            '-p ' + rtpdstport[0] + ' <' + audio)
+            os.system(mp32rtp)
 
 if __name__ == '__main__':
     try:
@@ -69,6 +69,7 @@ if __name__ == '__main__':
     serverport = int(values['uaserver:puerto'])
     user = usrname + ":" + str(serverport)
     rtpport = int(values['rtpaudio:puerto'])
+    rtpdstport = []
     proxyip = values['regproxy:ip']
     proxyport = int(values['regproxy:puerto'])
     praddress = proxyip + ':' + str(proxyport)
