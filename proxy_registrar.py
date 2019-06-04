@@ -6,6 +6,7 @@ import os
 import time
 import json
 import secrets
+import hashlib
 import socket
 import socketserver
 from xml.sax import make_parser
@@ -41,6 +42,7 @@ class JSONLoader:
 class UDPHandler(socketserver.DatagramRequestHandler):
 
     sesions = {}
+    nonce = {}
 
     def expiresTime(self):
         try:
@@ -60,10 +62,12 @@ class UDPHandler(socketserver.DatagramRequestHandler):
             port = self.prjson.usr[dst]['serverport']
             print(prip)
             print(port)
+            self.serv_addr = prip + ':' + port
             my_socket.connect((prip, int(port)))
             my_socket.send(bytes(message, 'utf-8'))
             try:
                 self.reply = my_socket.recv(1024).decode('utf-8')
+                log.received(self.serv_addr, ' '.join(message.split('\r\n')) + '\r\n')
             except:
                 # -- enviar error a cliente.
                 # -- el servidor no se encuentra en ese .xml
@@ -74,48 +78,68 @@ class UDPHandler(socketserver.DatagramRequestHandler):
         self.linedecod = self.line.decode('utf-8')
         self.message = self.linedecod.split('\r\n')
         self.prjson = JSONLoader(database)
-        self.address = self.client_address[0] + ':' + str(self.client_address[1])
+        self.address = self.client_address[0] + ':'
         self.expiresTime()
         self.processSIP()
 
     def processRegister(self):
         user = self.message[0].split(":")[1]
-        print(user)
         self.port = self.message[0].split(":")[2].split()[0]
+        self.address += self.port
         self.expires = int(self.message[1].split(":")[1].split()[0])
         self.deadtime = time.gmtime(time.time()+ 3600 + int(self.expires))
         self.strdeadtime = time.strftime('%d/%m/%Y %H:%M:%S', self.deadtime)
+        log.received(self.address,' '.join(self.message) + '\r\n')
+        print(self.linedecod)
+        print(user)
         if user in self.prjson.usr:
             if self.expires == 0:
                 del self.prjson.usr[user]
                 self.wfile.write(bytes(cod['200'],'utf-8'))
+                log.send(self.address,' '.join(cod['200'].split('\r\n')) + '\r\n')
                 print("user is logging out")
             else:
                 self.prjson.usr[user]['expires'] = self.strdeadtime
                 self.wfile.write(bytes(cod['200'],'utf-8'))
+                log.send(self.address,' '.join(cod['200'].split('\r\n')) + '\r\n')
                 print("user is already registered")
         else:
             if user in self.prjson.passwd:
-                nonce = secrets.choice(range(000000000,999999999))
+                usrpasswd = self.prjson.passwd[user]['passwd']
                 if self.message[2] == '':
+                    nonce = secrets.choice(range(000000000,999999999))
+                    self.nonce[user] = nonce
+                    message = 'WWW Authenticate: Digest nonce='+ str(nonce)
                     self.wfile.write(bytes(cod['401'],'utf-8'))
-                    self.wfile.write((bytes('WWW Authenticate: Digest nonce='
-                    + str(nonce),'utf-8')))
+                    self.wfile.write(bytes(message,'utf-8'))
+                    log.send(self.address,' '.join(cod['401'].split('\r\n')) + message + '\r\n')
                     print('unauthorized')
                 else:
-                    user_data = {'serverport': self.port,
-                                'expires': self.strdeadtime}
-                    self.prjson.usr[user] = user_data
-                    self.wfile.write(bytes(cod['200'],'utf-8'))
-                    print("registered in json")
+                    print('nonce',self.nonce[user])
+                    dig_resp = self.message[2].split("=")[1]
+                    h = hashlib.md5()
+                    h.update(bytes(str(self.nonce[user]),'utf-8'))
+                    h.update(bytes(usrpasswd,'utf-8'))
+                    dig_compa = h.hexdigest()
+                    if dig_resp == dig_compa:
+                        user_data = {'serverport': self.port,
+                                    'expires': self.strdeadtime}
+                        self.prjson.usr[user] = user_data
+                        self.wfile.write(bytes(cod['200'],'utf-8'))
+                        log.send(self.address,' '.join(cod['200'].split('\r\n')) + '\r\n')
+                        print("registered in json")
+                    else:
+                        print('Authenticate failed')
             else:
                 self.wfile.write(bytes(cod['404'], 'utf-8'))
+                log.send(self.address,' '.join(cod['404'].split('\r\n')) + '\r\n')
                 print('user ' + user + ' not found')
         self.prjson.register()
 
     def processInvite(self):
         sdp = self.message[3:8]
         print(self.linedecod)
+        log.received(self.address,' '.join(self.message) + '\r\n')
         orig = sdp[1].split()[0].split('=')[1]
         if orig in self.prjson.usr:
             dst = self.message[0].split(":")[1].split(" ")[0]
@@ -123,6 +147,8 @@ class UDPHandler(socketserver.DatagramRequestHandler):
                 sesion = sdp[2].split('=')[1]
                 self.sesions[sesion] = [orig, dst]
                 self.client2server(self.linedecod, dst)
+                print(self.linedecod)
+                #log.send(self.serv_addr,self.linedecod)
                 self.wfile.write(bytes(self.reply,'utf-8'))
                 print(orig + ' starting sesion: ' + sesion)
                 print(self.reply)
@@ -134,9 +160,6 @@ class UDPHandler(socketserver.DatagramRequestHandler):
             self.wfile.write(bytes(cod['404'], 'utf-8'))
             print('user ' + orig + ' not found')
 
-    def processBye(self):
-        print("bye")
-
     def processSIP(self):
         method = self.message[0].split(' ')[0]
         if method == 'REGISTER':
@@ -147,6 +170,12 @@ class UDPHandler(socketserver.DatagramRequestHandler):
             user = self.message[0].split(":")[1].split(" ")[0]
             print(self.message)
             self.client2server(self.linedecod,user)
+        elif method == 'BYE':
+            user = self.message[0].split(":")[1].split(" ")[0]
+            self.client2server(self.linedecod,user)
+            self.wfile.write(bytes(self.reply, 'utf-8'))
+        else:
+            self.wfile.write(bytes(cod['405'], 'utf-8'))
 
 
 if __name__ == '__main__':
@@ -171,4 +200,5 @@ if __name__ == '__main__':
     try:
         serve.serve_forever()
     except KeyboardInterrupt:
+        log.finishing()
         sys.exit('Finalizando Servidor')

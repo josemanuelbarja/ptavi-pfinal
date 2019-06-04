@@ -5,6 +5,7 @@ import sys
 import os
 import time
 import socket
+import hashlib
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
 
@@ -78,6 +79,7 @@ class Logger:
 
 class SendSip:
 
+
     def __init__(self, server, port):
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as self.sock:
                 self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -119,13 +121,15 @@ class SendSip:
     def processBye(self):
         self.sock.send((bytes(MESSAGE.format_map(Default(name= OPTIONS))
             + '\r\n','utf-8')))
+        log.send(praddress, MESSAGE.format_map(Default(name= OPTIONS)))
 
     def processResponse(self):
-        ack = []
         if '401' in self.response[0]:
-            #print(self.response)
+            h = hashlib.md5()
             nonce = self.response[2].split("nonce=")[1]
-            authen = 'Authorization: Digest response=' + nonce + '\r\n'
+            h.update(bytes(nonce,'utf-8'))
+            h.update(bytes(usrpasswd,'utf-8'))
+            authen = 'Authorization: Digest response=' + h.hexdigest() + '\r\n'
             self.sock.send((bytes(MESSAGE.format_map(Default(name= user))
                 + '\r\n' + EXPIRES + '\r\n' + authen,'utf-8')))
             log.send(praddress, MESSAGE.format_map(Default(name= user)) +
@@ -143,15 +147,13 @@ class SendSip:
                 sys.exit(message)
         elif ('100' in self.response[0] and '180' in self.response[2]
         and '200' in self.response[4]) and 'sdp' in self.response[6]:
-            print("hola: ack")
+            self.sock.send(bytes('ACK' + ' sip:' + OPTIONS + ' SIP/2.0 \r\n', 'utf-8'))
+            log.send(praddress,'ACK' + ' sip:' + OPTIONS + ' SIP/2.0 \r\n')
             dstport = self.response[12].split(" ")[1]
-            #variables que hagan falta
-            self.sock.send(bytes('ACK' + ' sip:' + OPTIONS + ' SIP/2.0 ' +
-            '\r\n', 'utf-8'))
             mp32rtp = './mp32rtp i- ' + serverip + ' p ' + dstport + ' < ' + audio
-            print(mp32rtp)
             os.system(mp32rtp)
-            # RESPUESTA ACK PARA 100 180 200.
+            #dst_addr = serverip + ":" + dstport
+
 
 if __name__ == '__main__':
     try:
@@ -177,7 +179,7 @@ if __name__ == '__main__':
     fichlog = values['log:path']
     audio = values['audio:path']
     MESSAGE = METHOD + ' sip:{name}' + ' SIP/2.0 '
-    EXPIRES = 'EXPIRES: ' + OPTIONS  #  'Only used with REGISTER method'
+    EXPIRES = 'EXPIRES: ' + OPTIONS  #  'Only used in REGISTER method'
     log = Logger(fichlog)
     connect = SendSip(proxyip, proxyport)
     log.finishing()
