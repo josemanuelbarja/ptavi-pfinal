@@ -59,19 +59,29 @@ class UDPHandler(socketserver.DatagramRequestHandler):
 
     def client2server(self, message, dst):
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
-            port = self.prjson.usr[dst]['serverport']
+            try:
+                port_dst= self.prjson.usr[dst]['serverport']
+            except:
+                log.error('User ' + dst + ' not found\r\n')
+                log.send(self.address,' '.join(cod['404'].split('\r\n')) + '\r\n')
+                log.finishing()
+                sys.exit('User ' + dst + ' not found')
             print(prip)
-            print(port)
-            self.serv_addr = prip + ':' + port
-            my_socket.connect((prip, int(port)))
+            print(port_dst)
+            self.serv_addr = prip + ':' + port_dst
+            my_socket.connect((prip, int(port_dst)))
             my_socket.send(bytes(message, 'utf-8'))
             try:
                 self.reply = my_socket.recv(1024).decode('utf-8')
-                log.received(self.serv_addr, ' '.join(message.split('\r\n')) + '\r\n')
+                log.send(self.serv_addr, ' '.join(message.split('\r\n')) + '\r\n')
             except:
                 # -- enviar error a cliente.
                 # -- el servidor no se encuentra en ese .xml
-                sys.exit('Connection refused')
+                error = ('Connection refused: No server listening at ' +
+                self.serv_addr)
+                log.error(error + '\r\n')
+                log.finishing()
+                sys.exit(error)
 
     def handle(self):
         self.line = self.rfile.read()
@@ -129,6 +139,7 @@ class UDPHandler(socketserver.DatagramRequestHandler):
                         log.send(self.address,' '.join(cod['200'].split('\r\n')) + '\r\n')
                         print("registered in json")
                     else:
+                        log.error('Authenticate failed')
                         print('Authenticate failed')
             else:
                 self.wfile.write(bytes(cod['404'], 'utf-8'))
@@ -139,26 +150,34 @@ class UDPHandler(socketserver.DatagramRequestHandler):
     def processInvite(self):
         sdp = self.message[3:8]
         print(self.linedecod)
-        log.received(self.address,' '.join(self.message) + '\r\n')
         orig = sdp[1].split()[0].split('=')[1]
+        log.received(self.address,' '.join(self.message) + '\r\n')
         if orig in self.prjson.usr:
+            port_orig = self.prjson.usr[orig]['serverport']
+            self.address += port_orig
             dst = self.message[0].split(":")[1].split(" ")[0]
             if dst in self.prjson.usr:
                 sesion = sdp[2].split('=')[1]
                 self.sesions[sesion] = [orig, dst]
                 self.client2server(self.linedecod, dst)
+                received = self.reply.split('\r\n')
+                log.received(self.serv_addr,' '.join(received) + '\r\n')
                 print(self.linedecod)
-                #log.send(self.serv_addr,self.linedecod)
                 self.wfile.write(bytes(self.reply,'utf-8'))
+                log.send(self.address,' '.join(received) + '\r\n')
                 print(orig + ' starting sesion: ' + sesion)
                 print(self.reply)
 
             else:
                 self.wfile.write(bytes(cod['404'],'utf-8'))
                 print('user ' + dst + ' not found')
+                log.error('user ' + dst + ' not found\r\n')
+                log.send(self.address,' '.join(cod['404'].split('\r\n')) + '\r\n')
         else:
             self.wfile.write(bytes(cod['404'], 'utf-8'))
             print('user ' + orig + ' not found')
+            log.error('user ' + orig + ' not found\r\n')
+            log.send(self.address,' '.join(cod['404'].split('\r\n')) + '\r\n')
 
     def processSIP(self):
         method = self.message[0].split(' ')[0]
@@ -169,9 +188,11 @@ class UDPHandler(socketserver.DatagramRequestHandler):
         elif method == 'ACK':
             user = self.message[0].split(":")[1].split(" ")[0]
             print(self.message)
+            log.received(self.address,self.message[0] + '\r\n')
             self.client2server(self.linedecod,user)
         elif method == 'BYE':
             user = self.message[0].split(":")[1].split(" ")[0]
+            log.received(self.address,self.linedecod)
             self.client2server(self.linedecod,user)
             self.wfile.write(bytes(self.reply, 'utf-8'))
         else:
