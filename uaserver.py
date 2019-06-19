@@ -19,22 +19,12 @@ atts = {'account': ['username', 'passwd'],
 
 class EchoHandler(socketserver.DatagramRequestHandler):
 
-    def processResponse(self):
-
-        # CONTABILIZAR TIEMPO PARA RESPUESTA ('t')
-        headersdp = ('Content-type: application/sdp\r\n\r\n' + 'v=0\r\n' + 'o='
-        + usrname + " " + serverip + '\r\n' + 's=sipsesion\r\n' + 't=0\r\n' +
-        'm=audio ' + str(rtpport) + ' RTP\r\n')
-        self.wfile.write(bytes(cod['100'], 'utf-8'))
-        self.wfile.write(bytes(cod['180'], 'utf-8'))
-        self.wfile.write(bytes(cod['200'] + headersdp, 'utf-8'))
-
-
     def handle(self):
         self.line = self.rfile.read()
-        self.address = self.client_address[0] + ':' + str(self.client_address[1])
+        self.address = self.client_address[0] + ':' + str(proxyport)
         self.linedecod = self.line.decode('utf-8')
         self.message = self.linedecod.split('\r\n')
+        log.received(self.address,' '.join(self.message) + '\r\n')
         method = self.message[0].split(" ")[0]
         if method == 'INVITE':
             contsdp = self.message[3:8]
@@ -46,7 +36,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
             rtpdst = contsdp[4]
             rtptype = rtpdst.split(" ")[0].split("=")[1]
             rtpdstport.append(rtpdst.split(" ")[1])
-            self.processResponse()
+            self.process_Call()
         elif method == 'ACK':
             print(self.linedecod)
             mp32rtp = ('./mp32rtp -i ' + self.client_address[0] +
@@ -54,8 +44,22 @@ class EchoHandler(socketserver.DatagramRequestHandler):
             print('running: ' + mp32rtp)
             os.system(mp32rtp)
         elif method == 'BYE':
-            print('bye received')
+            print('Bye Received')
             self.wfile.write(bytes(cod['200'],'utf-8'))
+            log.send(self.address,' '.join(cod['200'].split('\r\n')) + '\r\n')
+
+    def process_Call(self):
+
+        # CONTABILIZAR TIEMPO PARA RESPUESTA ('t')
+        headersdp = ('Content-type: application/sdp\r\n\r\n' + 'v=0\r\n' + 'o='
+        + usrname + " " + serverip + '\r\n' + 's=sipsesion\r\n' + 't=0\r\n' +
+        'm=audio ' + str(rtpport) + ' RTP\r\n')
+        self.wfile.write(bytes(cod['100'], 'utf-8'))
+        self.wfile.write(bytes(cod['180'], 'utf-8'))
+        self.wfile.write(bytes(cod['200'] + headersdp, 'utf-8'))
+        log.send(self.address,' '.join(cod['100'].split('\r\n')) + '\r\n')
+        log.send(self.address,' '.join(cod['180'].split('\r\n')) + '\r\n')
+        log.send(self.address,' '.join(cod['200'].split('\r\n')) + '\r\n')
 
 if __name__ == '__main__':
     try:
@@ -81,7 +85,9 @@ if __name__ == '__main__':
     audio = values['audio:path']
     serve = socketserver.UDPServer((serverip, serverport),EchoHandler)
     print(" listening at " + serverip + ":" + str(serverport))
+    log = Logger(fichlog)
     try:
         serve.serve_forever()
     except KeyboardInterrupt:
+        log.finishing()
         sys.exit('Finalizando Servidor')

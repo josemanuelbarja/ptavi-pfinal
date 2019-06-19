@@ -90,6 +90,8 @@ class SendSip:
                     self.processInvite()
                 elif METHOD == 'BYE':
                     self.processBye()
+                else:
+                    sys.exit('Bad request')
                 try:
                     data = self.sock.recv(1024)
                     self.response = data.decode('utf-8').split("\r\n")
@@ -111,17 +113,17 @@ class SendSip:
         '\r\n')
 
     def processInvite(self):
-        headersdp = ('Content-type: application/sdp\r\n\r\n' + 'v=0\r\n' + 'o=' +
-            usrname + " " + serverip + '\r\n' + 's=sipsesion\r\n' + 't=0\r\n' +
+        headersdp = ('Content-type: application/sdp\r\n\r\n' + 'v=0\r\n' + 'o='
+        + usrname + " " + serverip + '\r\n' + 's=sipsesion\r\n' + 't=0\r\n' +
              'm=audio ' + str(rtpport) + ' RTP\r\n')
         self.sock.send((bytes(MESSAGE.format_map(Default(name= OPTIONS))
             + '\r\n' + headersdp,'utf-8')))
-        log.send(praddress, MESSAGE.format_map(Default(name= OPTIONS)))
+        log.send(praddress, MESSAGE.format_map(Default(name= OPTIONS)) + '\r\n')
 
     def processBye(self):
         self.sock.send((bytes(MESSAGE.format_map(Default(name= OPTIONS))
             + '\r\n','utf-8')))
-        log.send(praddress, MESSAGE.format_map(Default(name= OPTIONS)))
+        log.send(praddress, MESSAGE.format_map(Default(name= OPTIONS)) + '\r\n')
 
     def processResponse(self):
         if '401' in self.response[0]:
@@ -152,7 +154,6 @@ class SendSip:
             dstport = self.response[12].split(" ")[1]
             mp32rtp = './mp32rtp i- ' + serverip + ' p ' + dstport + ' < ' + audio
             os.system(mp32rtp)
-            #dst_addr = serverip + ":" + dstport
 
 
 if __name__ == '__main__':
