@@ -149,8 +149,8 @@ class SendSip:
                 sys.exit(message)
         elif ('100' in self.response[0] and '180' in self.response[2]
         and '200' in self.response[4]) and 'sdp' in self.response[6]:
-            self.sock.send(bytes('ACK' + ' sip:' + OPTIONS + ' SIP/2.0 \r\n', 'utf-8'))
-            log.send(praddress,'ACK' + ' sip:' + OPTIONS + ' SIP/2.0 \r\n')
+            self.sock.send(bytes('ACK' + ' sip:' + OPTIONS + ' SIP/2.0\r\n', 'utf-8'))
+            log.send(praddress,'ACK' + ' sip:' + OPTIONS + ' SIP/2.0\r\n')
             dstport = self.response[12].split(" ")[1]
             mp32rtp = './mp32rtp i- ' + serverip + ' p ' + dstport + ' < ' + audio
             os.system(mp32rtp)
@@ -179,7 +179,7 @@ if __name__ == '__main__':
     praddress = proxyip + ':' + str(proxyport)
     fichlog = values['log:path']
     audio = values['audio:path']
-    MESSAGE = METHOD + ' sip:{name}' + ' SIP/2.0 '
+    MESSAGE = METHOD + ' sip:{name}' + ' SIP/2.0'
     EXPIRES = 'EXPIRES: ' + OPTIONS  #  'Only used in REGISTER method'
     log = Logger(fichlog)
     connect = SendSip(proxyip, proxyport)

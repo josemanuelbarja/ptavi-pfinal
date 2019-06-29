@@ -38,7 +38,6 @@ class EchoHandler(socketserver.DatagramRequestHandler):
             rtpdstport.append(rtpdst.split(" ")[1])
             self.process_Call()
         elif method == 'ACK':
-            print(self.linedecod)
             mp32rtp = ('./mp32rtp -i ' + self.client_address[0] +
             ' -p ' + rtpdstport[0] + ' < ' + audio)
             print('running: ' + mp32rtp)

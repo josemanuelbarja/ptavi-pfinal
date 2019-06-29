@@ -59,7 +59,7 @@ class UDPHandler(socketserver.DatagramRequestHandler):
             try:
                 port_dst= self.prjson.usr[dst]['serverport']
             except:
-                self.wfile.write(bytes(cod['404'],'utf-8'))
+                self.wfile.write(bytes(cod['404'] + cab_proxy,'utf-8'))
                 log.send(self.address,' '.join(cod['404'].split('\r\n')) + '\r\n')
                 log.finishing()
                 sys.exit('User ' + dst + ' not found')
@@ -96,11 +96,11 @@ class UDPHandler(socketserver.DatagramRequestHandler):
         if user in self.prjson.usr:
             if expires == 0:
                 del self.prjson.usr[user]
-                self.wfile.write(bytes(cod['200'],'utf-8'))
+                self.wfile.write(bytes(cod['200'] + cab_proxy,'utf-8'))
                 log.send(self.address,' '.join(cod['200'].split('\r\n')) + '\r\n')
             else:
                 self.prjson.usr[user]['expires'] = strdeadtime
-                self.wfile.write(bytes(cod['200'],'utf-8'))
+                self.wfile.write(bytes(cod['200'] + cab_proxy,'utf-8'))
                 log.send(self.address,' '.join(cod['200'].split('\r\n')) + '\r\n')
         else:
             if user in self.prjson.passwd:
@@ -109,8 +109,8 @@ class UDPHandler(socketserver.DatagramRequestHandler):
                     number = secrets.choice(range(000000000,999999999))
                     nonce[user] = number
                     message = 'WWW Authenticate: Digest nonce='+ str(number)
-                    self.wfile.write(bytes(cod['401'],'utf-8'))
-                    self.wfile.write(bytes(message,'utf-8'))
+                    self.wfile.write(bytes(cod['401'] + cab_proxy,'utf-8'))
+                    self.wfile.write(bytes(message + cab_proxy,'utf-8'))
                     log.send(self.address,' '.join(cod['401'].split('\r\n')) + message + '\r\n')
                     print('Authorization Needed')
                 else:
@@ -123,14 +123,14 @@ class UDPHandler(socketserver.DatagramRequestHandler):
                         user_data = {'serverport': port,
                                     'expires': strdeadtime}
                         self.prjson.usr[user] = user_data
-                        self.wfile.write(bytes(cod['200'],'utf-8'))
+                        self.wfile.write(bytes(cod['200'] + cab_proxy,'utf-8'))
                         log.send(self.address,' '.join(cod['200'].split('\r\n')) + '\r\n')
                         print("Registered completed")
                     else:
                         log.error('Authenticate failed')
                         print('Authenticate failed')
             else:
-                self.wfile.write(bytes(cod['404'], 'utf-8'))
+                self.wfile.write(bytes(cod['404'] + cab_proxy, 'utf-8'))
                 log.send(self.address,' '.join(cod['404'].split('\r\n')) + '\r\n')
         self.prjson.register()
 
@@ -147,19 +147,19 @@ class UDPHandler(socketserver.DatagramRequestHandler):
                     self.client2server(self.linedecod, dst)
                     received = self.reply.split('\r\n')
                     log.received(self.serv_addr,' '.join(received) + '\r\n')
-                    self.wfile.write(bytes(self.reply,'utf-8'))
+                    self.wfile.write(bytes(self.reply + cab_proxy,'utf-8'))
                     log.send(self.address,' '.join(received) + '\r\n')
                 else:
-                    self.wfile.write(bytes(cod['400'],'utf-8'))
+                    self.wfile.write(bytes(cod['400'] + cab_proxy,'utf-8'))
                     print('Same address')
                     log.error('Same address\r\n')
                     log.send(self.address,' '.join(cod['400'].split('\r\n')) + '\r\n')
             else:
-                self.wfile.write(bytes(cod['404'],'utf-8'))
+                self.wfile.write(bytes(cod['404'] + cab_proxy,'utf-8'))
                 print('user ' + dst + ' not found')
                 log.send(self.address,' '.join(cod['404'].split('\r\n')) + '\r\n')
         else:
-            self.wfile.write(bytes(cod['404'], 'utf-8'))
+            self.wfile.write(bytes(cod['404'] + cab_proxy, 'utf-8'))
             print('user ' + orig + ' not found')
             log.send(self.address,' '.join(cod['404'].split('\r\n')) + '\r\n')
 
@@ -167,7 +167,7 @@ class UDPHandler(socketserver.DatagramRequestHandler):
         user = self.message[0].split(":")[1].split(" ")[0]
         log.received(self.address,self.linedecod)
         self.client2server(self.linedecod,user)
-        self.wfile.write(bytes(self.reply, 'utf-8'))
+        self.wfile.write(bytes(self.reply + cab_proxy, 'utf-8'))
 
 
     def processSIP(self):
@@ -183,7 +183,7 @@ class UDPHandler(socketserver.DatagramRequestHandler):
         elif method == 'BYE':
             self.processBye()
         else:
-            self.wfile.write(bytes(cod['405'], 'utf-8'))
+            self.wfile.write(bytes(cod['405'] + cab_proxy, 'utf-8'))
             log.send(self.address,' '.join(cod['405'].split('\r\n')) + '\r\n')
 
 
@@ -204,6 +204,8 @@ if __name__ == '__main__':
     datapasswd = values['database:passwdpath']
     fichlog = values['log:path']
     nonce = {}
+    cab_proxy = ('Via: SIP/2.0/UDP ' + prip + ':'
+                 + str(prport) + ';' + prname + '\r\n')
     log = Logger(fichlog)
     serve = socketserver.UDPServer((prip, prport),UDPHandler)
     print("Proxy listening at port " + str(prport))
