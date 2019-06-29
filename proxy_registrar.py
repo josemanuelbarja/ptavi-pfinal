@@ -103,35 +103,41 @@ class UDPHandler(socketserver.DatagramRequestHandler):
                 self.wfile.write(bytes(cod['200'] + cab_proxy,'utf-8'))
                 log.send(self.address,' '.join(cod['200'].split('\r\n')) + '\r\n')
         else:
-            if user in self.prjson.passwd:
-                usrpasswd = self.prjson.passwd[user]['passwd']
-                if self.message[2] == '':
-                    number = secrets.choice(range(000000000,999999999))
-                    nonce[user] = number
-                    message = 'WWW Authenticate: Digest nonce='+ str(number)
-                    self.wfile.write(bytes(cod['401'] + cab_proxy,'utf-8'))
-                    self.wfile.write(bytes(message + cab_proxy,'utf-8'))
-                    log.send(self.address,' '.join(cod['401'].split('\r\n')) + message + '\r\n')
-                    print('Authorization Needed')
-                else:
-                    dig_resp = self.message[2].split("=")[1]
-                    h = hashlib.md5()
-                    h.update(bytes(str(nonce[user]),'utf-8'))
-                    h.update(bytes(usrpasswd,'utf-8'))
-                    dig_compa = h.hexdigest()
-                    if dig_resp == dig_compa:
-                        user_data = {'serverport': port,
-                                    'expires': strdeadtime}
-                        self.prjson.usr[user] = user_data
-                        self.wfile.write(bytes(cod['200'] + cab_proxy,'utf-8'))
-                        log.send(self.address,' '.join(cod['200'].split('\r\n')) + '\r\n')
-                        print("Registered completed")
-                    else:
-                        log.error('Authenticate failed')
-                        print('Authenticate failed')
-            else:
-                self.wfile.write(bytes(cod['404'] + cab_proxy, 'utf-8'))
+            if expires == 0:
+                self.wfile.write(bytes(cod['404'] + cab_proxy,'utf-8'))
                 log.send(self.address,' '.join(cod['404'].split('\r\n')) + '\r\n')
+                log.error('Not registered yet')
+                print('Not registered yet')
+            else:
+                if user in self.prjson.passwd:
+                    usrpasswd = self.prjson.passwd[user]['passwd']
+                    if self.message[2] == '':
+                        number = secrets.choice(range(000000000,999999999))
+                        nonce[user] = number
+                        message = 'WWW Authenticate: Digest nonce='+ str(number)
+                        self.wfile.write(bytes(cod['401'],'utf-8'))
+                        self.wfile.write(bytes(message + '\r\n' + cab_proxy,'utf-8'))
+                        log.send(self.address,' '.join(cod['401'].split('\r\n')) + message + '\r\n')
+                        print('Authorization Needed')
+                    else:
+                        dig_resp = self.message[2].split("=")[1]
+                        h = hashlib.md5()
+                        h.update(bytes(str(nonce[user]),'utf-8'))
+                        h.update(bytes(usrpasswd,'utf-8'))
+                        dig_compa = h.hexdigest()
+                        if dig_resp == dig_compa:
+                            user_data = {'serverport': port,
+                                        'expires': strdeadtime}
+                            self.prjson.usr[user] = user_data
+                            self.wfile.write(bytes(cod['200'] + cab_proxy,'utf-8'))
+                            log.send(self.address,' '.join(cod['200'].split('\r\n')) + '\r\n')
+                            print("Registered completed")
+                        else:
+                            log.error('Authenticate failed')
+                            print('Authenticate failed')
+                else:
+                    self.wfile.write(bytes(cod['404'] + cab_proxy, 'utf-8'))
+                    log.send(self.address,' '.join(cod['404'].split('\r\n')) + '\r\n')
         self.prjson.register()
 
     def processInvite(self):
