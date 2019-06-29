@@ -50,7 +50,6 @@ class EchoHandler(socketserver.DatagramRequestHandler):
 
     def process_Call(self):
 
-        # CONTABILIZAR TIEMPO PARA RESPUESTA ('t')
         headersdp = ('Content-type: application/sdp\r\n\r\n' + 'v=0\r\n' + 'o='
         + usrname + " " + serverip + '\r\n' + 's=sipsesion\r\n' + 't=0\r\n' +
         'm=audio ' + str(rtpport) + ' RTP\r\n')
@@ -72,19 +71,15 @@ if __name__ == '__main__':
     parser.parse(open(CONFIG_FICH))
     values = xml.get_tags()
     usrname = values['account:username']
-    usrpasswd = values['account:passwd']
     serverip = values['uaserver:ip']
     serverport = int(values['uaserver:puerto'])
-    user = usrname + ":" + str(serverport)
     rtpport = int(values['rtpaudio:puerto'])
     rtpdstport = []
-    proxyip = values['regproxy:ip']
     proxyport = int(values['regproxy:puerto'])
-    praddress = proxyip + ':' + str(proxyport)
     fichlog = values['log:path']
     audio = values['audio:path']
     serve = socketserver.UDPServer((serverip, serverport),EchoHandler)
-    print(" listening at " + serverip + ":" + str(serverport))
+    print("Server listening at " + serverip + ":" + str(serverport))
     log = Logger(fichlog)
     try:
         serve.serve_forever()

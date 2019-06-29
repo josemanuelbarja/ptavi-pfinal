@@ -41,15 +41,15 @@ class JSONLoader:
 
 class UDPHandler(socketserver.DatagramRequestHandler):
 
-    def expiresTime(self):
+    def delUserTime(self):
         try:
-            user_del = []
+            delete = []
             now = time.gmtime(time.time() + 3600)
             for usr in self.prjson.usr:
                 if now >= time.strptime(self.prjson.usr[usr]['expires'],
                 '%d/%m/%Y %H:%M:%S'):
-                    user_del.append(usr)
-            for usr in user_del:
+                    delete.append(usr)
+            for usr in delete:
                 del self.prjson.usr[usr]
         except:
             pass
@@ -60,12 +60,9 @@ class UDPHandler(socketserver.DatagramRequestHandler):
                 port_dst= self.prjson.usr[dst]['serverport']
             except:
                 self.wfile.write(bytes(cod['404'],'utf-8'))
-                log.error('User ' + dst + ' not found\r\n')
                 log.send(self.address,' '.join(cod['404'].split('\r\n')) + '\r\n')
                 log.finishing()
                 sys.exit('User ' + dst + ' not found')
-            print(prip)
-            print(port_dst)
             self.serv_addr = prip + ':' + port_dst
             my_socket.connect((prip, int(port_dst)))
             my_socket.send(bytes(message, 'utf-8'))
@@ -80,31 +77,29 @@ class UDPHandler(socketserver.DatagramRequestHandler):
                 sys.exit(error)
 
     def handle(self):
-        self.line = self.rfile.read()
-        self.linedecod = self.line.decode('utf-8')
+        line = self.rfile.read()
+        self.linedecod = line.decode('utf-8')
         self.message = self.linedecod.split('\r\n')
         self.prjson = JSONLoader(database)
         self.address = self.client_address[0] + ':'
-        self.expiresTime()
+        self.delUserTime()
         self.processSIP()
 
     def processRegister(self):
         user = self.message[0].split(":")[1]
-        self.port = self.message[0].split(":")[2].split()[0]
-        self.address += self.port
-        self.expires = int(self.message[1].split(":")[1].split()[0])
-        self.deadtime = time.gmtime(time.time()+ 3600 + int(self.expires))
-        self.strdeadtime = time.strftime('%d/%m/%Y %H:%M:%S', self.deadtime)
+        port = self.message[0].split(":")[2].split()[0]
+        self.address += port
+        expires = int(self.message[1].split(":")[1].split()[0])
+        deadtime = time.gmtime(time.time()+ 3600 + int(expires))
+        strdeadtime = time.strftime('%d/%m/%Y %H:%M:%S', deadtime)
         log.received(self.address,' '.join(self.message) + '\r\n')
-        print(self.linedecod)
-        print(user)
         if user in self.prjson.usr:
-            if self.expires == 0:
+            if expires == 0:
                 del self.prjson.usr[user]
                 self.wfile.write(bytes(cod['200'],'utf-8'))
                 log.send(self.address,' '.join(cod['200'].split('\r\n')) + '\r\n')
             else:
-                self.prjson.usr[user]['expires'] = self.strdeadtime
+                self.prjson.usr[user]['expires'] = strdeadtime
                 self.wfile.write(bytes(cod['200'],'utf-8'))
                 log.send(self.address,' '.join(cod['200'].split('\r\n')) + '\r\n')
         else:
@@ -119,15 +114,14 @@ class UDPHandler(socketserver.DatagramRequestHandler):
                     log.send(self.address,' '.join(cod['401'].split('\r\n')) + message + '\r\n')
                     print('Authorization Needed')
                 else:
-                    print('nonce',nonce[user])
                     dig_resp = self.message[2].split("=")[1]
                     h = hashlib.md5()
                     h.update(bytes(str(nonce[user]),'utf-8'))
                     h.update(bytes(usrpasswd,'utf-8'))
                     dig_compa = h.hexdigest()
                     if dig_resp == dig_compa:
-                        user_data = {'serverport': self.port,
-                                    'expires': self.strdeadtime}
+                        user_data = {'serverport': port,
+                                    'expires': strdeadtime}
                         self.prjson.usr[user] = user_data
                         self.wfile.write(bytes(cod['200'],'utf-8'))
                         log.send(self.address,' '.join(cod['200'].split('\r\n')) + '\r\n')
@@ -138,12 +132,10 @@ class UDPHandler(socketserver.DatagramRequestHandler):
             else:
                 self.wfile.write(bytes(cod['404'], 'utf-8'))
                 log.send(self.address,' '.join(cod['404'].split('\r\n')) + '\r\n')
-                print('User ' + user + ' not found')
         self.prjson.register()
 
     def processInvite(self):
         sdp = self.message[3:8]
-        print(self.linedecod)
         orig = sdp[1].split()[0].split('=')[1]
         log.received(self.address,' '.join(self.message) + '\r\n')
         if orig in self.prjson.usr:
@@ -151,22 +143,24 @@ class UDPHandler(socketserver.DatagramRequestHandler):
             self.address += port_orig
             dst = self.message[0].split(":")[1].split(" ")[0]
             if dst in self.prjson.usr:
-                self.client2server(self.linedecod, dst)
-                received = self.reply.split('\r\n')
-                log.received(self.serv_addr,' '.join(received) + '\r\n')
-                print(self.linedecod)
-                self.wfile.write(bytes(self.reply,'utf-8'))
-                log.send(self.address,' '.join(received) + '\r\n')
-                print(self.reply)
+                if dst != orig:
+                    self.client2server(self.linedecod, dst)
+                    received = self.reply.split('\r\n')
+                    log.received(self.serv_addr,' '.join(received) + '\r\n')
+                    self.wfile.write(bytes(self.reply,'utf-8'))
+                    log.send(self.address,' '.join(received) + '\r\n')
+                else:
+                    self.wfile.write(bytes(cod['400'],'utf-8'))
+                    print('Same address')
+                    log.error('Same address\r\n')
+                    log.send(self.address,' '.join(cod['400'].split('\r\n')) + '\r\n')
             else:
                 self.wfile.write(bytes(cod['404'],'utf-8'))
                 print('user ' + dst + ' not found')
-                log.error('user ' + dst + ' not found\r\n')
                 log.send(self.address,' '.join(cod['404'].split('\r\n')) + '\r\n')
         else:
             self.wfile.write(bytes(cod['404'], 'utf-8'))
             print('user ' + orig + ' not found')
-            log.error('user ' + orig + ' not found\r\n')
             log.send(self.address,' '.join(cod['404'].split('\r\n')) + '\r\n')
 
     def processBye(self):
@@ -184,7 +178,6 @@ class UDPHandler(socketserver.DatagramRequestHandler):
             self.processInvite()
         elif method == 'ACK':
             user = self.message[0].split(":")[1].split(" ")[0]
-            print(self.message)
             log.received(self.address,self.message[0] + '\r\n')
             self.client2server(self.linedecod,user)
         elif method == 'BYE':
@@ -213,7 +206,7 @@ if __name__ == '__main__':
     nonce = {}
     log = Logger(fichlog)
     serve = socketserver.UDPServer((prip, prport),UDPHandler)
-    print("Server " + prname + " listening at port " + str(prport))
+    print("Proxy listening at port " + str(prport))
     try:
         serve.serve_forever()
     except KeyboardInterrupt:
