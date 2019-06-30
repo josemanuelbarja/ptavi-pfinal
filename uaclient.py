@@ -18,12 +18,12 @@ atts = {'account': ['username', 'passwd'],
         'audio': ['path']}
 
 cod = {'100': 'SIP/2.0 100 Trying\r\n\r\n',
-        '180': 'SIP/2.0 180 Ringing\r\n\r\n',
-        '200': 'SIP/2.0 200 OK\r\n\r\n',
-        '400': 'SIP/2.0 400 Bad Request\r\n\r\n',
-        '401': 'SIP/2.0 401 Unauthorized\r\n\r\n',
-        '404': 'SIP/2.0 404 User Not Found\r\n\r\n',
-        '405': 'SIP/2.0 405 Method Not Allowed\r\n\r\n'}
+       '180': 'SIP/2.0 180 Ringing\r\n\r\n',
+       '200': 'SIP/2.0 200 OK\r\n\r\n',
+       '400': 'SIP/2.0 400 Bad Request\r\n\r\n',
+       '401': 'SIP/2.0 401 Unauthorized\r\n\r\n',
+       '404': 'SIP/2.0 404 User Not Found\r\n\r\n',
+       '405': 'SIP/2.0 405 Method Not Allowed\r\n\r\n'}
 
 
 class ConfigHandler(ContentHandler):
@@ -40,13 +40,15 @@ class ConfigHandler(ContentHandler):
     def get_tags(self):
         return self.dicc
 
+
 class Default(dict):
-     def __missing__(self, key):
-         return key
+    def __missing__(self, key):
+        return key
+
 
 class Logger:
 
-    def __init__(self,fich):
+    def __init__(self, fich):
         if not os.path.exists(fich):
             self.log = open(fich, 'w')
         self.fich = fich
@@ -54,22 +56,21 @@ class Logger:
         self.log.write(time.strftime('%Y%m%d%H%M%S') + ' Starting...\r\n')
         self.log.close()
 
-    def send(self,address,message):
+    def send(self, address, message):
         self.log = open(self.fich, 'a')
         self.log.write((time.strftime('%Y%m%d%H%M%S') + ' Sent to ' + address +
-            ': ' + message))
+                        ': ' + message))
         self.log.close()
 
-    def received(self,address,message):
+    def received(self, address, message):
         self.log = self.log = open(self.fich, 'a')
         self.log.write((time.strftime('%Y%m%d%H%M%S') + ' Received from ' +
-            address + ': ' + message))
+                        address + ': ' + message))
         self.log.close()
 
     def error(self, message):
         self.log = self.log = open(self.fich, 'a')
-        self.log.write((time.strftime('%Y%m%d%H%M%S') + ' Error: '
-            + message))
+        self.log.write((time.strftime('%Y%m%d%H%M%S') + ' Error: ' + message))
         self.log.close()
 
     def finishing(self):
@@ -77,8 +78,8 @@ class Logger:
         self.log.write(time.strftime('%Y%m%d%H%M%S') + ' Finishing.\r\n')
         self.log.close()
 
-class SendSip:
 
+class SendSip:
 
     def __init__(self, server, port):
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as self.sock:
@@ -99,18 +100,17 @@ class SendSip:
                     log.received(praddress, ' '.join(self.response) + '\r\n')
                     self.processResponse()
                 except:
-                    message = ('No server listening at ' + proxyip + ' port '
-                        + str(proxyport))
+                    message = ('No server listening at ' + proxyip + ' port ' +
+                               str(proxyport))
                     log.error(message + '\r\n')
                     log.finishing()
                     sys.exit(message)
 
-
     def processRegister(self):
-        self.sock.send((bytes(MESSAGE.format_map(Default(name= user))
-            + '\r\n' + EXPIRES + '\r\n\r\n','utf-8')))
+        self.sock.send((bytes(MESSAGE.format_map(Default(name= user)) +
+                        '\r\n' + EXPIRES + '\r\n\r\n','utf-8')))
         log.send(praddress, MESSAGE.format_map(Default(name= user))+ EXPIRES +
-        '\r\n')
+                            '\r\n')
 
     def processInvite(self):
         headersdp = ('Content-type: application/sdp\r\n\r\n' + 'v=0\r\n' + 'o='
@@ -149,10 +149,12 @@ class SendSip:
                 sys.exit(message)
         elif ('100' in self.response[0] and '180' in self.response[2]
         and '200' in self.response[4]) and 'sdp' in self.response[6]:
-            self.sock.send(bytes('ACK' + ' sip:' + OPTIONS + ' SIP/2.0\r\n', 'utf-8'))
+            self.sock.send(bytes('ACK' + ' sip:' + OPTIONS + ' SIP/2.0\r\n',
+                                 'utf-8'))
             log.send(praddress,'ACK' + ' sip:' + OPTIONS + ' SIP/2.0\r\n')
             dstport = self.response[12].split(" ")[1]
-            mp32rtp = './mp32rtp i- ' + serverip + ' p ' + dstport + ' < ' + audio
+            mp32rtp = ('./mp32rtp i- ' + serverip + ' p ' + dstport + ' < ' +
+                       audio)
             os.system(mp32rtp)
 
 
