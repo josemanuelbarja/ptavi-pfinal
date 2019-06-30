@@ -27,7 +27,6 @@ class JSONLoader:
                 self.usr = json.load(filejson)
             with open(datapasswd, 'r') as filejson:
                 self.passwd = json.load(filejson)
-            #tiempo de expiracion
         except:
             pass
 

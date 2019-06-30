@@ -108,7 +108,7 @@ class SendSip:
 
     def processRegister(self):
         self.sock.send((bytes(MESSAGE.format_map(Default(name= user))
-            + '\r\n' + EXPIRES + '\r\n','utf-8')))
+            + '\r\n' + EXPIRES + '\r\n\r\n','utf-8')))
         log.send(praddress, MESSAGE.format_map(Default(name= user))+ EXPIRES +
         '\r\n')
 
