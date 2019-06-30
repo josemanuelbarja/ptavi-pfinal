@@ -17,6 +17,7 @@ atts = {'account': ['username', 'passwd'],
         'log': ['path'],
         'audio': ['path']}
 
+
 class EchoHandler(socketserver.DatagramRequestHandler):
 
     def handle(self):
@@ -24,7 +25,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
         self.address = self.client_address[0] + ':' + str(proxyport)
         self.linedecod = self.line.decode('utf-8')
         self.message = self.linedecod.split('\r\n')
-        log.received(self.address,' '.join(self.message) + '\r\n')
+        log.received(self.address, ' '.join(self.message) + '\r\n')
         method = self.message[0].split(" ")[0]
         if method == 'INVITE':
             contsdp = self.message[3:8]
@@ -39,25 +40,27 @@ class EchoHandler(socketserver.DatagramRequestHandler):
             self.process_Call()
         elif method == 'ACK':
             mp32rtp = ('./mp32rtp -i ' + self.client_address[0] +
-            ' -p ' + rtpdstport[0] + ' < ' + audio)
+                       ' -p ' + rtpdstport[0] + ' < ' + audio)
+            # cvlc = 'cvlc rtp://@' + serverip + ':' + rtpdstport[0]
             print('running: ' + mp32rtp)
             os.system(mp32rtp)
         elif method == 'BYE':
             print('Bye Received')
-            self.wfile.write(bytes(cod['200'],'utf-8'))
-            log.send(self.address,' '.join(cod['200'].split('\r\n')) + '\r\n')
+            self.wfile.write(bytes(cod['200'], 'utf-8'))
+            log.send(self.address, ' '.join(cod['200'].split('\r\n')) + '\r\n')
 
     def process_Call(self):
 
-        headersdp = ('Content-type: application/sdp\r\n\r\n' + 'v=0\r\n' + 'o='
-        + usrname + " " + serverip + '\r\n' + 's=sipsesion\r\n' + 't=0\r\n' +
-        'm=audio ' + str(rtpport) + ' RTP\r\n')
+        headersdp = ('Content-type: application/sdp\r\n\r\n' + 'v=0\r\n' +
+                     'o=' + usrname + " " + serverip + '\r\n' +
+                     's=sipsesion\r\n' + 't=0\r\n' + 'm=audio ' +
+                     str(rtpport) + ' RTP\r\n')
         self.wfile.write(bytes(cod['100'], 'utf-8'))
         self.wfile.write(bytes(cod['180'], 'utf-8'))
         self.wfile.write(bytes(cod['200'] + headersdp, 'utf-8'))
-        log.send(self.address,' '.join(cod['100'].split('\r\n')) + '\r\n')
-        log.send(self.address,' '.join(cod['180'].split('\r\n')) + '\r\n')
-        log.send(self.address,' '.join(cod['200'].split('\r\n')) + '\r\n')
+        log.send(self.address, ' '.join(cod['100'].split('\r\n')) + '\r\n')
+        log.send(self.address, ' '.join(cod['180'].split('\r\n')) + '\r\n')
+        log.send(self.address, ' '.join(cod['200'].split('\r\n')) + '\r\n')
 
 if __name__ == '__main__':
     try:
@@ -77,7 +80,7 @@ if __name__ == '__main__':
     proxyport = int(values['regproxy:puerto'])
     fichlog = values['log:path']
     audio = values['audio:path']
-    serve = socketserver.UDPServer((serverip, serverport),EchoHandler)
+    serve = socketserver.UDPServer((serverip, serverport), EchoHandler)
     print("Server listening at " + serverip + ":" + str(serverport))
     log = Logger(fichlog)
     try:
