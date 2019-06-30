@@ -133,7 +133,7 @@ class SendSip:
             h.update(bytes(usrpasswd,'utf-8'))
             authen = 'Authorization: Digest response=' + h.hexdigest() + '\r\n'
             self.sock.send((bytes(MESSAGE.format_map(Default(name= user))
-                + '\r\n' + EXPIRES + '\r\n' + authen,'utf-8')))
+                + '\r\n' + EXPIRES + '\r\n' + authen + '\r\n','utf-8')))
             log.send(praddress, MESSAGE.format_map(Default(name= user)) +
             EXPIRES + ' ' + authen)
             try:
